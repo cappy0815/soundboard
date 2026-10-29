@@ -5,6 +5,8 @@ Android-App für Tablets im Querformat, entstanden für die Musik bei Eishockey-
 
 **Aktuelle Version:** 0.13.1
 
+![Soundboard auf dem Tablet](docs/screenshot.png)
+
 ## Funktionen
 
 - Frei belegbare Kacheln mit eigenem Bild, einzelne Titel oder ganze Ordner als Playlist

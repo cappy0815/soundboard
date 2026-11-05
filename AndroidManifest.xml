@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="de.justus.soundboard">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="Soundboard"
         android:icon="@mipmap/ic_launcher"

@@ -664,6 +664,13 @@ final class Dialogs {
                 + "gerade wach gehalten wird, ⚡ = Ladekabel steckt.", 12, Util.MUTED, false);
         box.addView(h3);
 
+        box.addView(Ui.section(a, "Updates ⬆"));
+        final Switch swUpd = Ui.toggle(a, "Automatisch nach Updates suchen (beim Start, höchstens einmal am Tag)", Update.auto(a));
+        box.addView(swUpd);
+        box.addView(updateRow(a));
+        box.addView(Ui.text(a, "Gelesen wird nur die Versionsdatei auf cappy0815.github.io (sonst GitHub). Installiert wird nichts "
+                + "automatisch: Bei einer neuen Version erscheint oben „⬆ Update“, ein Tipp lädt die APK im Browser.", 12, Util.MUTED, false));
+
         ScrollView sv = new ScrollView(a);
         sv.addView(box);
         AlertDialog d = new AlertDialog.Builder(a, Ui.DIALOG_THEME)
@@ -692,6 +699,7 @@ final class Dialogs {
                         b.dayResetPlayed = swDayPlayed.isChecked();
                         b.dayResetLists = swDayLists.isChecked();
                         b.lockPin = etPin.getText().toString().trim();
+                        Update.setAuto(a, swUpd.isChecked());
                         b.save();
                         a.applyKeepOn();
                         a.refreshTiles();
@@ -702,6 +710,85 @@ final class Dialogs {
         d.show();
         Ui.dialog(d);
         Ui.width(d, 0.6f);
+    }
+
+    // ------------------------------------------------------------------ Updates
+    /** Statuszeile mit „Jetzt prüfen“ und – wenn neu – „Herunterladen“ (Einstellungen und Hilfe „Über“) */
+    static LinearLayout updateRow(final MainActivity a) {
+        final LinearLayout row = new LinearLayout(a);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, a.dp(4), 0, a.dp(4));
+        final TextView st = Ui.text(a, "", 14, Util.TEXT, false);
+        row.addView(st, new LinearLayout.LayoutParams(0, -2, 1f));
+        final Button dl = Ui.button(a, "Herunterladen", Util.AMBER, true, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Update.openDownload(a);
+            }
+        });
+        final Button chk = Ui.button(a, "Jetzt prüfen", Util.TEXT, false, null);
+        final Runnable show = new Runnable() {
+            @Override
+            public void run() {
+                boolean avail = Update.available(a);
+                st.setText(Update.status(a));
+                st.setTextColor(avail ? Util.AMBER : Util.TEXT);
+                dl.setVisibility(avail ? View.VISIBLE : View.GONE);
+                chk.setEnabled(!Update.isBusy());
+                a.refreshUpdate();
+            }
+        };
+        chk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Update.check(a, new Update.Done() {
+                    @Override
+                    public void done(boolean ok) {
+                        show.run();
+                        if (!ok) {
+                            st.setText("Update-Server nicht erreichbar – Internet prüfen");
+                            st.setTextColor(Util.AMBER);
+                        }
+                    }
+                });
+                show.run();
+            }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+        lp.leftMargin = a.dp(8);
+        row.addView(dl, lp);
+        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(-2, -2);
+        lp2.leftMargin = a.dp(8);
+        row.addView(chk, lp2);
+        show.run();
+        return row;
+    }
+
+    /** Tipp auf „⬆ Update“ in der Kopfleiste */
+    static void update(final MainActivity a) {
+        String msg = "Version " + Update.latest(a) + " ist verfügbar (installiert: " + Update.installed(a) + ").\n\n"
+                + "„Herunterladen“ öffnet die APK im Browser. Danach die Datei antippen und installieren – "
+                + "Kacheln, Presets und Einstellungen bleiben erhalten.\n\n"
+                + "Tipp: nicht kurz vor dem Spiel aktualisieren 😉";
+        AlertDialog d = new AlertDialog.Builder(a, Ui.DIALOG_THEME)
+                .setTitle("⬆ Update")
+                .setMessage(msg)
+                .setNegativeButton("Später", null)
+                .setNeutralButton("Was ist neu?", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface di, int w) {
+                        Update.open(a, Update.PROJECT_PAGE);
+                    }
+                })
+                .setPositiveButton("Herunterladen", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface di, int w) {
+                        Update.openDownload(a);
+                    }
+                })
+                .create();
+        d.show();
+        Ui.dialog(d);
     }
 
     // ------------------------------------------------------------------ Fernbedienung
@@ -783,6 +870,10 @@ final class Dialogs {
 
     // ------------------------------------------------------------------ Hilfe
     private static final String[][] CHANGELOG = {
+            {"0.14", "Update-Prüfung: automatisch (beim Start, höchstens einmal am Tag) oder von Hand in ⚙ Einstellungen und ? Hilfe → Über\n"
+                    + "Gibt es eine neue Version, erscheint oben „⬆ Update“ – ein Tipp lädt die APK im Browser, installiert wird nichts automatisch\n"
+                    + "Downloads kommen jetzt von der Projektseite cappy0815.github.io\n"
+                    + "Hilfe → Über: Links zur Projektseite und zum Quellcode"},
             {"0.13.1", "Vormerken geht jetzt während JEDES laufenden Sounds – auch während Zamboni, Hymnen oder Hupen (⚡). "
                     + "⚡ bestimmt nur noch, ob eine Kachel selbst sofort startet. Fade blendet aus und startet das Vorgemerkte"},
             {"0.13", "TRACK-Fader zeigt die automatische Angleichung des laufenden Titels mit an (TRACK · auto −3,5)\n"
@@ -1006,6 +1097,7 @@ final class Dialogs {
             item(a, c, "🎮", "Fernbedienung / Tasten: Funktion wählen, „Anlernen“, Taste am Klicker drücken");
             item(a, c, "🔒", "Sperre: optionaler PIN zum Entsperren");
             item(a, c, "☀", "Display bleibt an, solange das Ladekabel steckt (oder immer)");
+            item(a, c, "⬆", "Updates: automatisch suchen an/aus, „Jetzt prüfen“, neue Version herunterladen");
         } else if (tab == 5) {
             String ver = "?";
             try {
@@ -1026,8 +1118,28 @@ final class Dialogs {
                     + "bereitstellst. Du bist dafür verantwortlich, die nötigen Rechte an diesen Dateien zu besitzen.");
             item(a, c, "📢", "Für das öffentliche Abspielen von Musik, z. B. bei Spielen mit Zuschauern, ist in der Regel eine "
                     + "Lizenz erforderlich (in Deutschland z. B. über die GEMA). Darum kümmert sich der Veranstalter – nicht die App.");
-            item(a, c, "🔒", "Die App braucht keine Internetverbindung und sendet keine Daten. Alles bleibt auf dem Gerät.");
+            item(a, c, "🔒", "Für den Betrieb braucht die App kein Internet. Einzige Verbindung ist die Update-Prüfung (abschaltbar): "
+                    + "Sie liest die Versionsdatei auf cappy0815.github.io bzw. GitHub. Daten aus der App werden nicht gesendet, "
+                    + "Kacheln, Musik und Einstellungen bleiben auf dem Gerät.");
             item(a, c, "ℹ", "Unabhängiges Projekt ohne Verbindung zu anderen Soundboard-Apps oder deren Herstellern.");
+            c.addView(Ui.section(a, "Updates & Projekt"));
+            c.addView(updateRow(a));
+            LinearLayout links = new LinearLayout(a);
+            links.addView(Ui.button(a, "Projektseite", Util.TEXT, false, new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Update.open(a, Update.PROJECT_PAGE);
+                }
+            }));
+            LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(-2, -2);
+            glp.leftMargin = a.dp(8);
+            links.addView(Ui.button(a, "Quellcode auf GitHub", Util.TEXT, false, new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Update.open(a, Update.GITHUB_PAGE);
+                }
+            }), glp);
+            c.addView(links);
             c.addView(Ui.section(a, "Gebaut von"));
             c.addView(para(a, "Programmiert von Justus Jonas – also Claude, der KI von Anthropic – nach Idee, Wünschen und "
                     + "unzähligen Tests von Michael Nowak. Gebaut in ein paar Tagen im Oktober 2026, für die Heimspiele des Neusser EV."));

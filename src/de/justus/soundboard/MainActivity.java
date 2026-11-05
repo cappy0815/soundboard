@@ -61,7 +61,7 @@ public class MainActivity extends Activity implements Engine.Listener {
     private int moveFrom = -1;
 
     private ImageView ivLogo;
-    private TextView tvClock, tvBattery, tvTitle, tvPresetNo, btEdit, btFade, btStop, btMute, tvHint;
+    private TextView tvClock, tvBattery, tvTitle, tvPresetNo, btEdit, btFade, btStop, btMute, tvHint, tvUpd;
     private LinearLayout chips;
     private Fader fVol, fGain;
     private AudioManager am;
@@ -93,6 +93,20 @@ public class MainActivity extends Activity implements Engine.Listener {
         checkNewDay();
         rescanFolders(false);
         analyzeLoudness(false); // Einzeltitel ohne Messwert (Ordner folgen nach dem Einlesen)
+        refreshUpdate();
+        if (Update.due(this)) { // automatisch: hoechstens einmal am Tag, still im Hintergrund
+            Update.check(this, new Update.Done() {
+                @Override
+                public void done(boolean ok) {
+                    refreshUpdate();
+                }
+            });
+        }
+    }
+
+    /** Update-Knopf in der Kopfleiste ein-/ausblenden */
+    void refreshUpdate() {
+        if (tvUpd != null) tvUpd.setVisibility(Update.available(this) ? View.VISIBLE : View.GONE);
     }
 
     /** erster Start an einem neuen Tag: Gespielt-Markierungen / Playlists zuruecksetzen (Einstellungen) */
@@ -407,6 +421,21 @@ public class MainActivity extends Activity implements Engine.Listener {
             }
         });
         bar.addView(help);
+        // erscheint nur, wenn es laut Update-Pruefung eine neuere Version gibt
+        tvUpd = Ui.text(this, "⬆ Update", 14, Util.BG, true);
+        tvUpd.setGravity(Gravity.CENTER);
+        tvUpd.setPadding(dp(10), 0, dp(10), 0);
+        tvUpd.setBackground(rounded(Util.AMBER, 10));
+        tvUpd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Dialogs.update(MainActivity.this);
+            }
+        });
+        LinearLayout.LayoutParams ulp = new LinearLayout.LayoutParams(-2, dp(36));
+        ulp.leftMargin = dp(6);
+        bar.addView(tvUpd, ulp);
+        tvUpd.setVisibility(View.GONE);
 
         LinearLayout status = new LinearLayout(this);
         status.setOrientation(LinearLayout.VERTICAL);
